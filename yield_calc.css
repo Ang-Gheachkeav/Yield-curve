@@ -1,0 +1,259 @@
+:root{
+	--bg:#0b1220;
+	--muted:#93a4c7;
+	--text:#e9efff;
+	--border:rgba(255,255,255,.12);
+	--shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+
+body{
+	margin:0;
+	font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans", Arial, sans-serif;
+	background: radial-gradient(1200px 600px at 20% 10%, rgba(106,167,255,.20), transparent 55%),
+				radial-gradient(900px 500px at 80% 30%, rgba(102,227,161,.16), transparent 55%),
+				var(--bg);
+	color:var(--text);
+	min-height:100vh;
+	padding:28px 16px;
+}
+.container{
+	max-width: 980px;
+	margin: 0 auto;
+}
+header{
+	margin-bottom: 18px;
+}
+h1{
+	font-size: 22px;
+	margin: 0 0 6px 0;
+	letter-spacing: .2px;
+}
+.version {
+	font-size: 0.75rem;
+	font-weight: 500;
+	padding: 3px 8px;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, 0.08);
+	color: var(--muted, #93a4c7);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	letter-spacing: 0.5px;	
+}
+.version.dev_mode {
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 6px;
+    margin-left: 6px;
+    background: rgba(255, 120, 120, 0.18);
+    border: 1px solid rgba(255, 120, 120, 0.35);
+    color: #ffdede;
+    box-shadow: 0 0 10px rgba(255, 80, 80, 0.25);
+}
+.subtitle{
+	margin:0;
+	color:var(--muted);
+	font-size: 13px;
+	line-height: 1.5;
+}
+.toolbar{
+	display:grid;
+	grid-template-columns: 1.1fr .9fr;
+	gap:16px;
+	align-items: stretch;
+	margin-top: 14px;
+	margin-bottom: 16px;
+}
+@media (max-width: 860px){
+	.toolbar{ grid-template-columns: 1fr; }
+}
+
+/* ===== Cards ===== */
+.panel, .sidecard, .card{
+	background: rgba(255,255,255,.06);
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	box-shadow: var(--shadow);
+	overflow: hidden;
+}
+
+.panel{
+	padding: 14px 14px 10px;
+}
+.panel_head{
+	display:flex;
+	justify-content: space-between;
+	align-items: center;
+	gap:10px;
+	margin-bottom: 10px;
+}
+.panel_title{
+	font-weight: 700;
+	font-size: 14px;
+	letter-spacing: .2px;
+}
+#modelSelect option {
+	background: #1e2535;
+	color: #fff;
+}
+
+/* ===== Weighted Average Rate mini table feel ===== */
+.panel_grid{
+	display:grid;
+	grid-template-columns: 1fr;
+	gap:10px;
+}
+.field{
+	display:grid;
+	grid-template-columns: 120px 1fr;
+	align-items: center;
+	gap:10px;
+	padding: 10px;
+	border-radius: 12px;
+	border: 1px solid rgba(255,255,255,.10);
+	background: rgba(0,0,0,.12);
+}
+.field_label{
+	font-size: 12px;
+	color: var(--muted);
+}
+.field_value{
+	display:flex;
+	align-items:center;
+	gap:10px;
+	justify-content: flex-start;
+}
+.unit{
+	font-size: 12px;
+	color: var(--muted);
+}
+
+/* ===== Inputs ===== */
+.input{
+	width: 160px;
+	max-width: 100%;
+	padding: 8px 10px;
+	border-radius: 10px;
+	border: 1px solid rgba(255,255,255,.14);
+	background: rgba(255,255,255,.06);
+	color: var(--text);
+	outline: none;
+}
+.input:focus{
+	border-color: rgba(106,167,255,.55);
+	box-shadow: 0 0 0 3px rgba(106,167,255,.18);
+}
+.input--highlight{
+	background: rgba(255,255,255,.10);
+	border-color: rgba(255,255,255,.18);
+}
+
+/* ===== Side card ===== */
+.sidecard{
+	padding: 14px;
+	display:flex;
+	flex-direction: column;
+	justify-content: flex-start;
+	gap:12px;
+}
+.sidecard_title{
+	font-weight: 700;
+	font-size: 14px;
+}
+.sidecard_text{
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--text);
+}
+.muted{ color: var(--muted); }
+
+/* ===== Buttons ===== */
+.btn{
+	appearance:none;
+	border: 1px solid rgba(255,255,255,.16);
+	background: rgba(106,167,255,.18);
+	color: var(--text);
+	padding: 8px 12px;
+	border-radius: 10px;
+	cursor:pointer;
+	font-weight: 600;
+	font-size: 13px;
+}
+.btn:hover{
+	background: rgba(106,167,255,.26);
+}
+
+/* ===== Chart Card ===== */
+.card{
+	padding: 12px 14px 10px;
+}
+.card_head{
+	display:flex;
+	align-items:flex-end;
+	justify-content: space-between;
+	gap:12px;
+	margin-bottom: 8px;
+}
+.card_title{
+	font-weight: 800;
+	font-size: 18px;
+	letter-spacing: .2px;
+}
+.card_subtitle{
+	font-size: 12px;
+	color: var(--muted);
+	margin-top: 2px;
+}
+.card_meta{
+	text-align:right;
+	padding: 8px 10px;
+	border-radius: 12px;
+	border: 1px solid rgba(255,255,255,.10);
+	background: rgba(0,0,0,.12);
+}
+.meta_k{
+	font-size: 11px;
+	color: var(--muted);
+}
+.meta_v{
+	font-size: 13px;
+	font-weight: 700;
+}
+
+/* Chart area border like the screenshot frame */
+.chartArea{
+	border: 1px solid rgba(255,255,255,.14);
+	border-radius: 12px;
+	padding: 12px;
+	background: rgba(255,255,255,.03);
+}
+
+/* Footer legend (simple, because Chart.js legend is optional) */
+.card_foot{
+	display:block;
+	justify-content: flex-end;
+	gap:14px;
+	margin-top: 10px;
+	color: var(--muted);
+	font-size: 12px;
+}
+/* Footnote under the chart */
+.foot_note{
+	margin-top: 10px;
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 1px solid rgba(255,255,255,.12);
+	background: rgba(0,0,0,.14);
+	color: rgba(233,239,255,.78);
+	font-size: 12px;
+	line-height: 1.6;
+	letter-spacing: .1px;
+}
+.dev_mode {
+	display: none;
+}
+.hidden {
+	display: none;
+}
+
+

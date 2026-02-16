@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Yield Curve Chart</title>
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
+<script src="./yield_data.js"></script>
+<script src="./yield_calc.js"></script>
+<script src="./chart-4.4.1.min.js"></script>
+<link rel="stylesheet" href="./yield_calc.css?v=000001">
+<style>
+</style>
+</head>
+
+<body>
+<div class="container">
+	<header>
+		<h1>Yield Curve Chart <span class='version'>Version 0.91</span><span class='version dev_mode'>Dev Mode</span></h1>
+		<p class="subtitle">
+		Calculation of Yield Rate using Nelson-Siegel-Svensson model and others.
+		</p>
+	</header>
+
+	<!-- ===== Toolbar / Summary ===== -->
+	<section class="toolbar">
+		<div class="panel">
+			<div class="panel_head">
+				<div class="panel_title">Weighted Average Rate for KHR</div>
+				<select id="modelSelect" class="input">
+					<option value="KHRNSS_MAN" class='NSS_MAN'>NSS Model (Manual)</option>
+					<option value="KHRNSS_AUTO" class='NSS_AUTO'>NSS Model (Auto)</option>
+					<option value="KHRPOLY">Polynomial</option>
+					<option value="KHRAD">GB Actual Data</option>
+					<option value="KHRIB">IB Actual Data</option>
+				</select>
+			</div>
+
+			<div class="panel_grid">
+				<div class="field">
+					<div class="field_label">Term</div>
+					<div class="field_value">
+						<input id="termDays" class="input input--highlight" type="number" value="10" min="1" step="1" />
+						<span class="unit">(Days)</span>
+						<button class="btn" id="btnRecalc" type="button">Calculate</button>
+					</div>
+				</div>
+
+				<div class="field">
+					<div class="field_label">Yield KHR</div>
+					<div class="field_value">
+						<span id="yieldKHR">—</span>
+						<span class="unit">%</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="sidecard">
+			<div class="sidecard_title">Instructions</div>
+			<div class="sidecard_text">
+				- To find the Weighted Average Rate for KHR,<br />
+				&nbsp;&nbsp;1) Select the model you want to use.<br />
+				&nbsp;&nbsp;2) Enter the term, then click "<b>Calculate</b>" to see the Yield.<br />
+				- Click a legend label to show or hide its corresponding chart line.
+			</div>
+		</div>
+	</section>
+
+	<!-- ===== Chart Card ===== -->
+	<section class="card">
+		<div class="card_head">
+			<div>
+				<div class="card_title">Yield Curve</div>
+				<div class="card_subtitle">(Weighted Average Rate)</div>
+			</div>
+			<div class="card_meta">
+				<div class="meta_v equation dev_mode">
+					<span id='eqation_1'></span><br>
+					<span id='eqation_2'></span>
+				</div>
+			</div>
+			<div class="card_meta">
+				<div class="meta_k">as at</div>
+				<div class="meta_v" id="asAt">99/9999</div>
+			</div>
+		</div>
+
+		<div class="chartArea">
+			<canvas id="yieldCurveChart" height="120"></canvas>
+		</div>
+
+		<div class="card_foot">
+			<div class="foot_note"><b>Note</b>: The NCD Rate is for short terms, which are from 7 days to 365 days, while the Government Bond Rate is for long terms, which are from 1 year to 10 years.</div>
+		</div>
+	</section>
+</div>
+
+<script>
+// Setting Initial Data
+let Params = {};
+let outputs = {};
+
+
+window.addEventListener('load', function () {
+	//Setting Up Development Mode
+	if ( Defaults.dev_mode ) {
+		document.querySelectorAll('.dev_mode').forEach(el => {
+			if (el.tagName === 'SPAN') {
+				el.style.display = 'inline-block';
+			} else {
+				el.style.display = 'block';
+			}
+		});
+	} else {
+	}
+	
+	//NSS Mode Setting
+	//1: Manual Data, 2: Auto Data, 3: Both
+	if ( Defaults.NSS_model == 1 ) {
+		const md = document.getElementById("modelSelect");
+		md.querySelector('option.NSS_MAN').text = "NSS Model";
+		md.querySelector('option.NSS_MAN').selected = true;
+		md.querySelector('option.NSS_AUTO').classList.add("hidden");;
+		delete Defaults.chart_data.KHRNSS_AUTO;
+		Defaults.chart_data.KHRNSS_MAN.name = "NSS (KHR)";
+		
+	} else if ( Defaults.NSS_model == 2 ) {
+		const md = document.getElementById("modelSelect");
+		md.querySelector('option.NSS_AUTO').text = "NSS Model";
+		md.querySelector('option.NSS_AUTO').selected = true;
+		md.querySelector('option.NSS_MAN').classList.add("hidden");;
+		delete Defaults.chart_data.KHRNSS_MAN;
+		Defaults.chart_data.KHRNSS_AUTO.name = "NSS (KHR)";
+	} else if ( Defaults.NSS_model == 3 ) {
+	}
+
+	// Setting Initial Data
+	outputs = {
+		model: document.getElementById("modelSelect"),
+		yieldPct: document.getElementById("yieldKHR"),
+		equation1: document.getElementById("eqation_1"),
+		equation2: document.getElementById("eqation_2"),
+		asAt: document.getElementById("asAt"),
+	};
+	outputs.asAt.textContent = Defaults.asAt;
+	
+	// ---- Convert days to years ----
+	Params.xYears = Defaults.x_days.map(d => d / 365);
+
+	// ---- Max year ----
+	Params.maxYear = Math.ceil(Math.max(...Params.xYears));
+
+	// Making Polynomial Data
+	Defaults.chart_data.KHRPOLY.data.length = 0;
+	Params.POLY_fitKHR = Regression.polynomialFit(Params.xYears, Defaults.chart_data.KHR.data, Defaults.polyOrder);
+	for (const x of Params.xYears) {
+		Defaults.chart_data.KHRPOLY.data.push(Regression.polynomialEval(Params.POLY_fitKHR, x));
+	}
+	//Making Equation in Text
+	outputs.equation1.textContent = Poly_equation(Params.POLY_fitKHR);
+	
+	//NSS Model Calculation
+	if ( Defaults.NSS_model >= 2 ) {
+		Defaults.chart_data.KHRNSS_AUTO.data.length = 0;
+		//Params.NSS_fitKHR = NSSFit.fit(Defaults.x_days, Defaults.chart_data.KHR.data,{tau1Min: 0.05,tau1Max: 10.0,tau1Step: 0.05,tau2Min: 0.05,tau2Max: 15.0,tau2Step: 0.05,});
+		Params.NSS_fitKHR = NSSExcelSolver.fit(Params.xYears, Defaults.chart_data.KHR.data);
+		for (const x of Params.xYears) {
+			Defaults.chart_data.KHRNSS_AUTO.data.push(NSSExcelSolver.evaluation(Params.NSS_fitKHR, x));
+		}
+		//Making Equation in Text
+		outputs.equation2.textContent = NSS_equation(Params.NSS_fitKHR);
+	}
+	
+//	console.log(Defaults.chart_data.KHRNSS_AUTO.data);
+//	console.log(Params.NSS_fitKHR);
+	
+//	console.log({year: Params.xYears, data: Defaults.chart_data.KHR.data});
+
+	draw_chart();
+
+	document.getElementById('modelSelect').addEventListener('change', (e) => {
+		clearOutputs();
+	});
+	
+	document.getElementById("btnRecalc").addEventListener("click", function () {
+		const days = Number(document.getElementById("termDays").value);
+		// ---- Max days ----
+		const maxDay = Math.ceil(Math.max(...Defaults.x_days));
+
+		const error_list = [];
+		if (!Number.isFinite(days) || days <= 0) error_list.push("• Term must be a positive number.");
+		if ( days > maxDay ) error_list.push("• Traget Days shall be lower than "+maxDay+" days.");
+
+		let yield = "Error";
+		if ( outputs.model.value == "KHRNSS_AUTO" && error_list.length === 0 ) {
+			//++++++++++++ NSS Excel Version
+			const target = "KHRNSS_AUTO";
+			if (Params.NSS_fitKHR.ok) {
+				yield = NSSExcelSolver.evaluation(Params.NSS_fitKHR, days/365);
+			} else {
+				error_list.push("• Cannot Caculate Valid Yield.");
+			}
+		} else if ( outputs.model.value == "KHRNSS_MAN" && error_list.length === 0 ) {
+			//++++++++++++ NSS Original Version
+			const target = "KHRNSS_MAN";
+			// Calculating Yiled KHR
+			const { left, right } = getBetween(days, Defaults.x_days, Defaults.chart_data[target].data);
+
+			if ( left && right ) {
+				yield = left.yield + (days - left.day) / (right.day - left.day) * (right.yield - left.yield);
+			} else {
+				error_list.push("• No valid yield points found.");
+			}
+		} else if ( outputs.model.value == "KHRPOLY" && error_list.length === 0 ) {
+			//++++++++++++ Polynomial Version
+			if (Params.POLY_fitKHR && Params.POLY_fitKHR.length) {
+				yield = Regression.polynomialEval(Params.POLY_fitKHR , days/365);
+			}
+			
+		} else if ( outputs.model.value == "KHRAD" && error_list.length === 0 ) {
+			//++++++++++++ GB Using Original Data
+			const target = "KHR";
+
+			const { left, right } = getBetween(days, Defaults.x_days, Defaults.chart_data[target].data);
+
+			if ( left && right ) {
+				yield = left.yield + (right.yield - left.yield) / (right.day - left.day) * (days - left.day);
+			} else {
+				error_list.push("• No valid yield points found.");
+			}
+		} else if ( outputs.model.value == "KHRIB" && error_list.length === 0 ) {
+			//++++++++++++ Interbank KHR Original Data
+			const target = "InterBank in KHR";
+
+			const { left, right } = getBetween(days, Defaults.x_days, Defaults.chart_data[target].data);
+
+			if ( left && right ) {
+				yield = left.yield + (right.yield - left.yield) / (right.day - left.day) * (days - left.day);
+			} else {
+				error_list.push("• No valid yield points found.");
+			}
+		} else if ( outputs.model.value == "NSS_IBKHR" && error_list.length === 0 ) {
+			//++++++++++++ NSS Excel Version
+			const target = "NSS_IBKHR";
+			if (Params.NSS_fitKHR.ok) {
+				yield = NSSExcelSolver.evaluation(Params.NSS_fitKHR, days/365);
+			} else {
+				error_list.push("• Cannot Caculate Valid Yield.");
+			}
+		}
+
+		if ( error_list.length > 0 ) {
+			outputs.yieldPct.textContent = "Error";
+			alert(error_list.join("\n"));
+			return;
+		} else {
+			outputs.yieldPct.textContent = fmtDecs(yield,5);
+		}
+	});
+});
+
+function clearOutputs(){
+	outputs.yieldPct.textContent = "—";
+}
+
+function draw_chart() {
+	// ---- Build datasets for Chart ----
+	const chartdata = [];
+	const lineType = { dashed: [6, 4], solid: [] };
+
+	//Making Chart Data for Each Line
+	for (const key in Defaults.chart_data) {
+		const item = Defaults.chart_data[key];
+
+		chartdata.push({
+			label: item.name,
+			data: Params.xYears.map((x, i) => ({
+				x: x,
+				y: item.data[i] != null ? Number(item.data[i].toFixed(2)) : null,
+			})),
+			spanGaps: true,
+			borderWidth: 2,
+			tension: 0,
+			borderDash: lineType[item.line],
+
+			// Use the color from Defaults Settings
+			borderColor: item.color,
+			pointBackgroundColor: item.color,
+			pointBorderColor: item.color,
+			pointRadius: 3,
+			pointHoverRadius: 5,
+		});
+	}
+
+	// Setting Chart Config Data
+	const config = {
+		type: 'line',
+		data: { datasets: chartdata },
+		options: {
+			responsive: true,
+			maintainAspectRatio: false,
+			interaction: { mode: 'index', intersect: false },
+			plugins: {
+				legend: {
+					display: true,
+					position: 'bottom',
+					labels: {
+						color: 'rgba(233,239,255,.8)',
+						usePointStyle: false,
+						boxWidth: 10,
+						boxHeight: 10,
+						padding: 14,
+						font: {
+							size: 14,
+							weight: '600',
+						}
+					},
+					onHover: function(event) {
+						event.native.target.style.cursor = 'pointer';
+					},
+					onLeave: function(event) {
+						event.native.target.style.cursor = 'default';
+					},
+				},
+				tooltip: {
+					callbacks: {
+					label: (item) => `${item.dataset.label}: ${item.parsed.y ?? '—'}%`
+					}
+				}
+			},
+			scales: {
+				x: {
+					type: 'linear',
+					min: 0,
+					max: Params.maxYear,
+					ticks: {
+					stepSize: 1,
+					callback: v => `${v}Y`,
+					color: 'rgba(233,239,255,.8)',
+					},
+					grid: { color: 'rgba(255,255,255,.08)' }
+				},
+				y: {
+					ticks: { callback: v => `${v}%`, color: 'rgba(233,239,255,.8)' },
+					grid: { color: 'rgba(255,255,255,.08)' }
+				}
+			}
+		}
+	}
+
+	// ---- Chart.js ----
+	const canvas = document.getElementById('yieldCurveChart');
+
+	// Delete if the chart already exists (for redraw)
+	if (window.myChart) {
+		window.myChart.destroy();
+	}
+
+	// Ensure the chart card has a proper height (if needed)
+	// The canvas may collapse if its parent element has no height
+	// So we set a minimum height here (can also be done with CSS)
+	canvas.parentElement.style.height = '450px';
+
+	window.myChart = new Chart(canvas, config);
+}
+
+</script>
+
+</body>
+</html>
